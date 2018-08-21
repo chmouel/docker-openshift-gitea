@@ -118,7 +118,7 @@ objects:
   id: ${APPLICATION_NAME}-http
   metadata:
     annotations:
-      description: Route for application's http service.
+      description: Route for application\'s http service.
     labels:
       app: ${APPLICATION_NAME}
     name: ${APPLICATION_NAME}
@@ -329,7 +329,7 @@ objects:
     runPolicy: Serial
     source:
       git:
-        uri: https://github.com/chmouel/docker-openshift-gitea
+        uri: https://github.com/wkulhanek/docker-openshift-gitea
       type: Git
     strategy:
       type: Docker
