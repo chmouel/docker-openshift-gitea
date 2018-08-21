@@ -7,13 +7,6 @@ metadata:
     iconClass: "icon-github"
   name: gitea-persistent
 objects:
-- kind: ServiceAccount
-  apiVersion: v1
-  metadata:
-    creationTimestamp: null
-    labels:
-      app: ${APPLICATION_NAME}
-    name: ${APPLICATION_NAME}
 - kind: Service
   apiVersion: v1
   metadata:
@@ -45,7 +38,6 @@ objects:
           name: ${APPLICATION_NAME}-postgresql
         name: ${APPLICATION_NAME}-postgresql
       spec:
-        serviceAccountName: ${APPLICATION_NAME}
         containers:
         - env:
           - name: POSTGRESQL_USER
@@ -86,7 +78,8 @@ objects:
             name: gitea-postgres-data
         volumes:
         - name: gitea-postgres-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: gitea-postgres-data
     triggers:
     - imageChangeParams:
         automatic: true
@@ -160,9 +153,8 @@ objects:
           app: ${APPLICATION_NAME}
           deploymentconfig: ${APPLICATION_NAME}
       spec:
-        serviceAccountName: ${APPLICATION_NAME}
         containers:
-        - image: "${GITEA_IMAGE}:${GITEA_VERSION}"
+        - image: ' '
           imagePullPolicy: Always
           name: ${APPLICATION_NAME}
           ports:
@@ -201,7 +193,8 @@ objects:
         terminationGracePeriodSeconds: 30
         volumes:
         - name: gitea-repositories
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: gitea-repositories
         - name: gitea-config
           configMap:
             name: gitea-config
@@ -211,6 +204,14 @@ objects:
     test: false
     triggers:
     - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - gitea
+        from:
+          kind: ImageStreamTag
+          name: gitea:latest
+      type: ImageChange
 - kind: PersistentVolumeClaim
   apiVersion: v1
   metadata:
@@ -304,6 +305,35 @@ objects:
       FILE_EXTENSIONS = .adoc,.asciidoc
       RENDER_COMMAND = "asciidoc --out-file=- -"
       IS_INPUT_FILE = false
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      template: gitea
+    name: gitea
+  spec:
+    lookupPolicy:
+      local: false
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      template: gitea
+    name: gitea-build
+  spec:
+    failedBuildsHistoryLimit: 5
+    output:
+      to:
+        kind: ImageStreamTag
+        name: gitea:latest
+    runPolicy: Serial
+    source:
+      git:
+        uri: https://github.com/chmouel/docker-openshift-gitea
+      type: Git
+    strategy:
+      type: Docker
+    successfulBuildsHistoryLimit: 5
 parameters:
 - description: The name for the application.
   name: APPLICATION_NAME
@@ -355,13 +385,3 @@ parameters:
   description: Gitea Secret Key
   from: '[a-zA-Z0-9]{10}'
   generate: expression
-- name: GITEA_IMAGE
-  displayName: Gogs Image
-  description: The name and tag for the Gitea Image to use
-  value: "docker.io/wkulhanek/gitea"
-  required: true
-- name: GITEA_VERSION
-  displayName: Gogs Image Version Tag
-  description: The tag for the Gogs Image to use
-  value: "latest"
-  required: true
